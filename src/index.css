@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  /* Define your custom colors here referencing pallete.pdf */
+  --color-zen-dark: #11212F;      /* Source 4 */
+  --color-zen-sidebar: #17293C;   /* Source 1 */
+  --color-zen-card: #1F3737;      /* Source 3 */
+  --color-zen-cardHover: #24433C; /* Source 2 */
+  --color-zen-accent: #1A8689;    /* Source 5 */
+}
+
+/* Global resets */
+body {
+  background-color: var(--color-zen-dark);
+  color: #fff;
+}
+
+/* Custom scrollbar to match the theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-zen-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-zen-sidebar);
+  border-radius: 9999px;
+}
