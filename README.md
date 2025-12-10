@@ -87,4 +87,5 @@ This project is configured for deployment on **Vercel**.
 ---
 
 **Author:** Vishwajeet Tripathi
+
 **Submission for:** Zenfinity Energy Frontend Intern Assignment
