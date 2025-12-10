@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { LayoutDashboard, TrendingUp, Battery } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 

@@ -4,7 +4,7 @@ import type { CycleSnapshot } from '../types';
 import { Layout } from '../components/Layout';
 import { 
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ScatterChart, Scatter, ZAxis, AreaChart, ReferenceLine 
+  ScatterChart, Scatter, ZAxis, AreaChart
 } from 'recharts';
 import { TrendingUp, Activity, Gauge } from 'lucide-react';
 
