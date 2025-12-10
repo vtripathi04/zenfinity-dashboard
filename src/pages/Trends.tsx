@@ -2,8 +2,11 @@ import { useEffect, useState } from 'react';
 import { api, ALLOWED_IMEIS } from '../services/api';
 import type { CycleSnapshot } from '../types';
 import { Layout } from '../components/Layout';
-import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp } from 'lucide-react';
+import { 
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  ScatterChart, Scatter, ZAxis, AreaChart, ReferenceLine 
+} from 'recharts';
+import { TrendingUp, Activity, Gauge } from 'lucide-react';
 
 export const Trends = () => {
   const [selectedImei, setSelectedImei] = useState(ALLOWED_IMEIS[0]);
@@ -25,11 +28,18 @@ export const Trends = () => {
 
         const formatted = sortedCycles.map((c: CycleSnapshot) => {
           accumulatedDrop += c.soh_drop;
+          
+          // Calculate Voltage Swing (Max - Min)
+          // Indicates depth of usage for that cycle
+          const voltageSpread = c.voltage_max - c.voltage_min;
+
           return {
             cycle: c.cycle_number,
             soh: 100 - accumulatedDrop, // Current Health
             temp: c.average_temperature,
-            soc: c.average_soc,         // Added SOC
+            soc: c.average_soc,         // SOC Trend
+            speed: c.average_speed,     // For scatter plot
+            spread: Number(voltageSpread.toFixed(3)), // For voltage swing chart
           };
         });
           
@@ -43,6 +53,18 @@ export const Trends = () => {
 
     loadTrends();
   }, [selectedImei]);
+
+  // Shared Tooltip Style for consistency and readability
+  const tooltipStyle = {
+    contentStyle: { 
+      backgroundColor: '#17293C', 
+      borderColor: '#374151', 
+      borderRadius: '8px', 
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+    },
+    itemStyle: { color: '#E2E8F0', fontSize: '12px', fontWeight: 500 }, // Light text for readability
+    labelStyle: { color: '#94A3B8', fontSize: '11px', marginBottom: '4px' } // Muted label
+  };
 
   return (
     <Layout>
@@ -65,25 +87,25 @@ export const Trends = () => {
       {loading ? (
         <div className="flex h-64 items-center justify-center text-zen-accent animate-pulse">Loading historical data...</div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           
+          {/* 1. Main Health Chart */}
           <div className="bg-zen-card p-6 rounded-xl border border-gray-800 shadow-lg h-[500px]">
             <h3 className="text-lg font-semibold mb-2 text-gray-200">Health (SOH) vs. Usage (SOC) vs. Temp</h3>
             
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart 
                 data={trendData} 
-                // Increased bottom margin to 60px for label spacing
-                margin={{ top: 20, right: 90, left: 30, bottom: 60 }} 
+                // Increased margins to prevent label clipping
+                margin={{ top: 20, right: 80, left: 50, bottom: 60 }} 
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                 
                 <XAxis 
                   dataKey="cycle" 
                   stroke="#9ca3af" 
-                  tickLine={false}
+                  tickLine={false} 
                   dy={10} 
-                  // Pushed label further down (-25 offset)
                   label={{ value: 'Cycle Number', position: 'insideBottom', offset: -25, fill: '#9ca3af' }} 
                 />
                 
@@ -92,14 +114,14 @@ export const Trends = () => {
                   yAxisId="left" 
                   stroke="#e2e8f0" 
                   domain={[0, 100]} 
-                  tickLine={false}
+                  tickLine={false} 
                   label={{ 
                     value: 'Percentage (%)', 
                     angle: -90, 
                     position: 'insideLeft', 
-                    dx: -15, 
-                    fill: '#e2e8f0',
-                    style: { textAnchor: 'middle' }
+                    dx: -45, // Pushed left
+                    fill: '#e2e8f0', 
+                    style: { textAnchor: 'middle' } 
                   }} 
                 />
                 
@@ -108,25 +130,22 @@ export const Trends = () => {
                   yAxisId="right" 
                   orientation="right" 
                   stroke="#f59e0b" 
-                  tickLine={false}
+                  tickLine={false} 
                   label={{ 
                     value: 'Avg Temp (°C)', 
                     angle: 90, 
                     position: 'insideRight', 
-                    dx: 15,
-                    fill: '#f59e0b',
-                    style: { textAnchor: 'middle' }
+                    dx: 40, // Pushed right
+                    fill: '#f59e0b', 
+                    style: { textAnchor: 'middle' } 
                   }} 
                 />
                 
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#17293C', borderColor: '#374151', color: '#fff' }}
-                  labelStyle={{ color: '#9ca3af' }}
-                />
+                <Tooltip {...tooltipStyle} />
                 
                 <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
                 
-                {/* SOH Line (Green, Top) */}
+                {/* SOH Line (Green) */}
                 <Line 
                   yAxisId="left" 
                   type="step" 
@@ -137,19 +156,19 @@ export const Trends = () => {
                   dot={false} 
                 />
 
-                {/* SOC Line (Blue/Cyan, Middle) */}
+                {/* SOC Line (Cyan) */}
                 <Line 
                   yAxisId="left" 
                   type="monotone" 
                   dataKey="soc" 
-                  stroke="#22d3ee" // Cyan color
+                  stroke="#22d3ee" 
                   strokeWidth={2} 
                   name="Avg SOC" 
                   dot={false} 
                   opacity={0.8}
                 />
 
-                {/* Temperature Area (Orange, Bottom) */}
+                {/* Temperature Area (Orange) */}
                 <Area 
                   yAxisId="right" 
                   type="monotone" 
@@ -161,6 +180,70 @@ export const Trends = () => {
                 />
               </ComposedChart>
             </ResponsiveContainer>
+          </div>
+
+          {/* New Charts Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            {/* 2. Voltage Swing (Replaces Cell Imbalance) */}
+            <div className="bg-zen-card p-6 rounded-xl border border-gray-800 shadow-lg h-[400px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="text-blue-400" size={20} />
+                <h3 className="text-lg font-semibold text-gray-200">Voltage Swing (Pack)</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                Diff. between Max & Min Pack Voltage. Higher swing = deeper discharge/usage.
+              </p>
+              <ResponsiveContainer width="100%" height="85%">
+                <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                  <XAxis dataKey="cycle" stroke="#9ca3af" tickLine={false} />
+                  <YAxis 
+                    stroke="#60a5fa" 
+                    tickLine={false} 
+                    label={{ value: 'Swing (V)', angle: -90, position: 'insideLeft', fill: '#60a5fa', dx: -10 }} 
+                  />
+                  <Tooltip {...tooltipStyle} />
+                  <Area type="monotone" dataKey="spread" stroke="#60a5fa" fill="#3b82f6" fillOpacity={0.2} name="Voltage Delta" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 3. Operational Stress Scatter Plot */}
+            <div className="bg-zen-card p-6 rounded-xl border border-gray-800 shadow-lg h-[400px]">
+              <div className="flex items-center gap-2 mb-4">
+                <Gauge className="text-purple-400" size={20} />
+                <h3 className="text-lg font-semibold text-gray-200">Operational Stress</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                Correlation: Avg Speed vs Temperature.
+              </p>
+              <ResponsiveContainer width="100%" height="85%">
+                <ScatterChart margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    type="number" 
+                    dataKey="speed" 
+                    name="Avg Speed" 
+                    unit=" km/h" 
+                    stroke="#9ca3af" 
+                    label={{ value: 'Speed (km/h)', position: 'insideBottom', offset: -10, fill: '#9ca3af' }} 
+                  />
+                  <YAxis 
+                    type="number" 
+                    dataKey="temp" 
+                    name="Temperature" 
+                    unit="°C" 
+                    stroke="#9ca3af" 
+                    label={{ value: 'Temp (°C)', angle: -90, position: 'insideLeft', fill: '#9ca3af', dx: -10 }} 
+                  />
+                  <ZAxis type="number" dataKey="cycle" name="Cycle" range={[60, 60]} />
+                  <Tooltip cursor={{ strokeDasharray: '3 3' }} {...tooltipStyle} />
+                  <Scatter name="Cycles" data={trendData} fill="#a855f7" fillOpacity={0.6} />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+
           </div>
 
           {/* Stats Grid */}

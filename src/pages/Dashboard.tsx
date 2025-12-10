@@ -4,8 +4,11 @@ import type { CycleSnapshot } from '../types';
 import { Layout } from '../components/Layout';
 import { TempDistribution } from '../components/TempDistribution';
 import { ChargingHabits } from '../components/ChargingHabits';
-import { ChevronLeft, ChevronRight, AlertTriangle, Zap, Activity, AlertCircle, Search, Download, FileText } from 'lucide-react';
-import { toPng } from 'html-to-image'; 
+import { 
+  ChevronLeft, ChevronRight, AlertTriangle, Zap, Activity, AlertCircle, 
+  Search, Download, FileText, TrendingUp 
+} from 'lucide-react';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
 export const Dashboard = () => {
@@ -15,39 +18,55 @@ export const Dashboard = () => {
   const [data, setData] = useState<CycleSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // Ref for the element we want to capture as PDF
+  // Ref for PDF capture
   const dashboardRef = useRef<HTMLDivElement>(null);
 
+  // 1. Initialize: Fetch Summary to get the Max Cycle count
   useEffect(() => {
     const initData = async () => {
       setLoading(true);
       try {
         const summaries = await api.getSummary();
         const currentSummary = summaries.find(s => s.imei === selectedImei);
+        
         if (currentSummary) {
           setMaxCycle(currentSummary.last_cycle);
-          setCycleNumber(currentSummary.last_cycle);
+          setCycleNumber(currentSummary.last_cycle); // Start at latest
+          
+          // Fetch the actual data for that latest cycle
           const latestData = await api.getCycleDetails(selectedImei, currentSummary.last_cycle);
-          setData(latestData);
+          if (latestData) setData(latestData);
         }
-      } catch (err) { console.error(err); } finally { setLoading(false); }
+      } catch (err) {
+        console.error("Initialization failed", err);
+      } finally {
+        setLoading(false);
+      }
     };
+
     initData();
   }, [selectedImei]);
 
+  // 2. Fetch data whenever cycleNumber changes
   useEffect(() => {
-    if (!maxCycle) return;
+    if (!maxCycle) return; 
+
     const fetchCycle = async () => {
       setLoading(true);
       try {
         const cycleData = await api.getCycleDetails(selectedImei, cycleNumber);
         setData(cycleData);
-      } catch (err) { console.error(err); } finally { setLoading(false); }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
+
     fetchCycle();
   }, [cycleNumber, selectedImei, maxCycle]);
 
-  // JSON Export 
+  // --- Export JSON ---
   const downloadJson = () => {
     if (!data) return;
     const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data, null, 2))}`;
@@ -57,21 +76,20 @@ export const Dashboard = () => {
     link.click();
   };
 
-  // PDF Export (Custom Page Size) 
+  // --- Export PDF ---
   const exportToPDF = async () => {
     const element = dashboardRef.current;
     if (!element) return;
 
-    // Visual feedback
     const originalCursor = document.body.style.cursor;
     document.body.style.cursor = 'wait';
 
     try {
-      // 1. Capture the element
+      // 1. Capture element with full scroll dimensions
       const { scrollWidth, scrollHeight } = element;
       const imgData = await toPng(element, {
         cacheBust: true,
-        backgroundColor: '#11212F',
+        backgroundColor: '#11212F', // Ensure dark theme background
         width: scrollWidth,
         height: scrollHeight,
         style: {
@@ -81,22 +99,21 @@ export const Dashboard = () => {
         },
       });
 
-      // 2. Convert pixels to millimeters (approximate 1px = 0.264583 mm)
+      // 2. Convert pixels to mm for PDF (approx 1px = 0.26mm)
       const pxToMm = 0.264583;
       const pdfWidth = scrollWidth * pxToMm;
       const pdfHeight = scrollHeight * pxToMm;
 
-      // 3. Initialize PDF with CUSTOM dimensions matching the dashboard
+      // 3. Create PDF with exact custom dimensions
       const pdf = new jsPDF({
         orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
         unit: 'mm',
-        format: [pdfWidth, pdfHeight], // exact size of content
+        format: [pdfWidth, pdfHeight],
       });
 
-      // 4. Add Image (0, 0 coordinates, exact width/height)
+      // 4. Add image and save
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      
-      pdf.save(`Analytics_Report_${selectedImei}_Cycle${cycleNumber}.pdf`);
+      pdf.save(`Analytics_Report_${selectedImei}_C${cycleNumber}.pdf`);
       
     } catch (err) {
       console.error("PDF generation failed", err);
@@ -106,19 +123,19 @@ export const Dashboard = () => {
     }
   };
 
-  if (loading && !data) return <Layout><div className="flex h-full items-center justify-center animate-pulse text-zen-accent">Loading...</div></Layout>;
+  if (loading && !data) return <Layout><div className="flex h-full items-center justify-center animate-pulse text-zen-accent">Loading Data...</div></Layout>;
 
   return (
     <Layout>
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white">System Monitor</h2>
           <p className="text-gray-400 text-sm mt-1 font-mono">IMEI: {selectedImei}</p>
         </div>
         
-        {/* Controls */}
         <div className="flex items-center gap-3">
-          {/* JSON Button */}
+          {/* Export Buttons */}
           <button 
              onClick={downloadJson}
              disabled={!data}
@@ -129,12 +146,11 @@ export const Dashboard = () => {
             <span className="hidden sm:inline text-sm font-medium">JSON</span>
           </button>
 
-          {/* PDF Button */}
           <button 
              onClick={exportToPDF}
              disabled={!data}
              className="flex items-center gap-2 bg-zen-accent hover:bg-opacity-90 text-white px-3 py-2 rounded-lg transition-colors shadow-lg"
-             title="Export Visualization as PDF"
+             title="Export Dashboard as PDF"
           >
             <FileText size={18} />
             <span className="hidden sm:inline text-sm font-medium">Export PDF</span>
@@ -142,6 +158,7 @@ export const Dashboard = () => {
           
           <div className="h-6 w-px bg-gray-700 mx-2"></div>
 
+          {/* Battery Selector */}
           <select 
             className="bg-zen-card border border-gray-700 rounded-lg px-4 py-2 text-sm focus:border-zen-accent outline-none text-white cursor-pointer"
             value={selectedImei}
@@ -152,11 +169,19 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Navigation (Keep same) */}
+      {/* Cycle Navigation */}
       <div className="bg-zen-card border border-gray-800 rounded-xl p-4 mb-8 flex flex-col md:flex-row items-center justify-between shadow-lg gap-4">
-         <button onClick={() => setCycleNumber(c => Math.max(0, c - 1))} className="p-2 hover:bg-zen-cardHover rounded-lg text-zen-accent disabled:opacity-30" disabled={loading || cycleNumber <= 0}>
-            <ChevronLeft size={24} />
+         <button 
+            onClick={() => setCycleNumber(c => Math.max(0, c - 1))} 
+            className="p-2 hover:bg-zen-cardHover rounded-lg text-zen-accent disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled={loading || cycleNumber <= 0}
+         >
+            <div className="flex items-center gap-2">
+              <ChevronLeft size={24} />
+              <span className="hidden md:inline font-medium">Prev</span>
+            </div>
          </button>
+         
          <div className="flex items-center gap-3 bg-zen-dark px-4 py-2 rounded-lg border border-gray-800">
             <span className="text-xs text-gray-500 uppercase tracking-widest hidden sm:block">Cycle #</span>
             <div className="relative">
@@ -174,25 +199,48 @@ export const Dashboard = () => {
             </div>
             <span className="text-sm text-gray-600 font-mono">/ {maxCycle}</span>
          </div>
-         <button onClick={() => setCycleNumber(c => Math.min(maxCycle, c + 1))} className="p-2 hover:bg-zen-cardHover rounded-lg text-zen-accent disabled:opacity-30" disabled={loading || cycleNumber >= maxCycle}>
-            <ChevronRight size={24} />
+
+         <button 
+            onClick={() => setCycleNumber(c => Math.min(maxCycle, c + 1))} 
+            className="p-2 hover:bg-zen-cardHover rounded-lg text-zen-accent disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled={loading || cycleNumber >= maxCycle}
+         >
+            <div className="flex items-center gap-2">
+              <span className="hidden md:inline font-medium">Next</span>
+              <ChevronRight size={24} />
+            </div>
          </button>
       </div>
 
-      {/* Content Area - Wrapped in dashboardRef for PDF capture */}
+      {/* Main Dashboard Content (Ref attached here for PDF capture) */}
       <div ref={dashboardRef} className="pb-4">
         {data ? (
           <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
+            {/* Metrics Grid (Including new Efficiency Card) */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6 mb-8">
               <MetricCard icon={Activity} label="Avg SOC" value={`${data.average_soc.toFixed(1)}%`} />
               <MetricCard icon={Zap} label="SOH Drop" value={`${data.soh_drop.toFixed(2)}%`} color={data.soh_drop > 0 ? 'text-red-400' : 'text-green-400'} />
               <MetricCard label="Duration" value={`${data.cycle_duration_hours.toFixed(1)}h`} />
               <MetricCard label="Distance" value={`${data.total_distance.toFixed(1)} km`} />
+              
+              {/* NEW: Efficiency Metric */}
+              <MetricCard 
+                label="Efficiency" 
+                value={(() => {
+                  const socUsed = data.max_soc - data.min_soc;
+                  if (socUsed <= 0 || data.total_distance <= 0) return 'N/A';
+                  return `${(data.total_distance / socUsed).toFixed(2)} km/%`;
+                })()} 
+                color="text-blue-400"
+                icon={TrendingUp}
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Temperature Chart */}
               <TempDistribution data={data} />
               
+              {/* Right Column: Widgets */}
               <div className="flex flex-col gap-6">
                  <div className="flex-1">
                    <ChargingHabits data={data} />
@@ -207,10 +255,16 @@ export const Dashboard = () => {
                    ) : (
                      <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
                        {data.alert_details?.warnings?.map((w, i) => (
-                         <div key={`w-${i}`} className="flex items-center gap-2 text-yellow-500 bg-yellow-900/10 p-2 rounded text-sm"><AlertTriangle size={14} />{w}</div>
+                         <div key={`w-${i}`} className="flex items-center gap-2 text-yellow-500 bg-yellow-900/10 p-2 rounded text-sm">
+                           <AlertTriangle size={14} className="shrink-0" />
+                           <span>{w}</span>
+                         </div>
                        ))}
                        {data.alert_details?.protections?.map((p, i) => (
-                         <div key={`p-${i}`} className="flex items-center gap-2 text-red-400 bg-red-900/10 p-2 rounded text-sm"><AlertCircle size={14} />{p}</div>
+                         <div key={`p-${i}`} className="flex items-center gap-2 text-red-400 bg-red-900/10 p-2 rounded text-sm">
+                           <AlertCircle size={14} className="shrink-0" />
+                           <span>{p}</span>
+                         </div>
                        ))}
                      </div>
                    )}
@@ -219,9 +273,13 @@ export const Dashboard = () => {
             </div>
           </>
         ) : (
+          /* Empty State */
           <div className="flex flex-col items-center justify-center h-96 bg-zen-card/50 rounded-xl border border-dashed border-gray-700">
-             <AlertCircle className="text-gray-500 mb-4" size={32} />
-             <p className="text-gray-400">No Data for Cycle #{cycleNumber}</p>
+             <div className="bg-gray-800 p-4 rounded-full mb-4">
+                <AlertCircle className="text-gray-500" size={32} />
+             </div>
+             <h3 className="text-xl font-semibold text-gray-300">No Data for Cycle #{cycleNumber}</h3>
+             <p className="text-gray-400 mt-2">Cycle snapshot missing or skipped.</p>
           </div>
         )}
       </div>
@@ -229,7 +287,7 @@ export const Dashboard = () => {
   );
 };
 
-// MetricCard
+// Reusable Metric Card
 const MetricCard = ({ label, value, icon: Icon, color = 'text-white' }: any) => (
   <div className="bg-zen-card p-5 rounded-xl border border-gray-800 hover:border-zen-accent/50 transition-all group relative overflow-hidden">
     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
