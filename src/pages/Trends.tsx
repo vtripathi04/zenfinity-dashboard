@@ -4,7 +4,7 @@ import type { CycleSnapshot } from '../types';
 import { Layout } from '../components/Layout';
 import { 
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ScatterChart, Scatter, ZAxis, AreaChart, ReferenceLine 
+  ScatterChart, Scatter, ZAxis, AreaChart 
 } from 'recharts';
 import { TrendingUp, Activity, Gauge } from 'lucide-react';
 
@@ -175,7 +175,7 @@ export const Trends = () => {
                   {/* CUSTOM TOOLTIP */}
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
                   
-                  <Scatter name="Data Point" data={trendData} fill="#a855f7" fillOpacity={0.6} unit="" />
+                  <Scatter name="Data Point" data={trendData} fill="#a855f7" fillOpacity={0.6} />
                 </ScatterChart>
               </ResponsiveContainer>
             </div>
