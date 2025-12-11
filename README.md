@@ -5,8 +5,9 @@ A comprehensive battery analytics dashboard built for the Zenfinity Energy Front
 ## 🚀 Features
 
 ### Core Dashboard
-* **Cycle Navigation:** Seamlessly browse through battery charge/discharge cycles with a responsive stepper and dropdown selector.
-* **Key Metrics:** Instant view of Average SOC, SOH Drop, Duration, and Total Distance per cycle.
+* **Cycle Navigation:** Seamlessly browse through battery charge/discharge cycles with a custom, responsive dropdown selector.
+* **Key Metrics:** Instant view of Average SOC, SOH Drop, Duration, Total Distance, and **Average Speed** per cycle.
+* **Cycle Statistics:** Precise timestamps for Cycle Start and Cycle End to pinpoint operational windows.
 * **Safety Logs:** Real-time visualization of warnings and protection events triggered during operation.
 * **Thermal Analysis:** Interactive histogram showing time spent in specific temperature ranges (with configurable 5°C/10°C/15°C/20°C bins).
 
@@ -17,7 +18,7 @@ A comprehensive battery analytics dashboard built for the Zenfinity Energy Front
 * **Efficiency Metric:** Calculates `km / %SOC` to measure vehicle energy efficiency.
 
 ### 🛠️ Utilities
-* **PDF Export:** Download high-resolution, vector-quality PDF reports of the dashboard for offline analysis.
+* **PDF Export:** Download high-resolution, vector-quality PDF reports of the dashboard (custom-sized to fit content).
 * **JSON Export:** Download raw telemetry data for specific cycles.
 * **Responsive Design:** Fully responsive layout optimized for desktop and tablet analysis.
 
@@ -26,7 +27,7 @@ A comprehensive battery analytics dashboard built for the Zenfinity Energy Front
 * **Framework:** React 18 + TypeScript
 * **Build Tool:** Vite
 * **Styling:** Tailwind CSS v4 (Alpha)
-* **Charts:** Recharts
+* **Charts:** Recharts (Composed, Area, Scatter)
 * **Icons:** Lucide React
 * **Data Export:** html-to-image, jsPDF
 * **HTTP Client:** Axios
@@ -43,7 +44,7 @@ Follow these steps to run the project locally.
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/your-username/zenfinity-dashboard.git
+    git clone [https://github.com/your-username/zenfinity-dashboard.git](https://github.com/your-username/zenfinity-dashboard.git)
     cd zenfinity-dashboard
     ```
 
@@ -73,10 +74,12 @@ src/
 
 ## 🌍 Deployment
 
-This project is configured for deployment on **Vercel**.
+This project is deployed on **Vercel**.
 
-* A `vercel.json` file is included to handle API proxying, resolving CORS issues by rewriting requests to the Zenfinity backend.
-* To deploy, simply import your repository into Vercel. The configuration will be detected automatically.
+**Note on API Proxying:**
+Since the backend API does not support CORS for direct browser requests, this project uses a dual-proxy strategy:
+* **Local Development:** Uses `vite.config.ts` to proxy requests to the backend.
+* **Production (Vercel):** Uses a `vercel.json` rewrite rule to transparently forward API calls, ensuring secure and seamless data fetching.
 
 ## 💡 Implementation Notes
 
@@ -85,7 +88,6 @@ This project is configured for deployment on **Vercel**.
 * **SOH Calculation:** State of Health is derived cumulatively from the `soh_drop` metric provided by the API.
 
 ---
-
 **Author:** Vishwajeet Tripathi
 
 **Submission for:** Zenfinity Energy Frontend Intern Assignment
